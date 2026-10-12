@@ -105,4 +105,18 @@ function changePin(){let p=$('newPin').value;if(p.length<6)return alert('Use uma
 setTimeout(()=>{const a=document.getElementById('dressText'),b=document.getElementById('dressTextCopy');if(a&&b&&a.textContent.trim())b.textContent=a.textContent},100);
 </script>
   https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2script>
+
+  <script>
+    const SUPABASE_URL = 'https:cmldpkupnvlsabgbpiwq.supabase.co';
+
+    const SUPABASE_KEY = 'sb_publishable_L-06R-Ysean0Dp3W8rMkVA_5YCjeJtj';
+
+    const SupabaseClient=
+      window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+        );
+    console.log('Supabase conectado');
+    
+  </script>
 </body></html>
