@@ -73,7 +73,13 @@ main{max-width:1120px;margin:auto;padding:0 5% 95px}.sec{padding:72px 0}.sec h2{
 <section id="photosPane" class="panel adminPane hide"><h2>Gerenciamento de fotos</h2><p>Adicione fotos, remova imagens e escolha a capa e a imagem da seção Nossa Fé.</p><label>Adicionar novas fotos</label><input id="photoFiles" type="file" accept="image/*" multiple><button class="btn" onclick="addPhotos()">Adicionar fotos</button><div id="photoGrid" class="thumbGrid" style="margin-top:20px"></div></section>
 <section id="musicPane" class="panel adminPane hide"><h2>Sugestões de músicas</h2><div class="table"><table><thead><tr><th>Convidado</th><th>Música</th><th>Artista</th><th>Mensagem</th><th>Ação</th></tr></thead><tbody id="songRows"></tbody></table></div></section>
 <section id="giftsPane" class="panel adminPane hide"><div class="head"><div><h2>Opções de presentes</h2><p>Adicione, edite ou remova presentes e seus valores.</p></div><button class="btn" onclick="newGift()">Adicionar presente</button></div><div id="giftEditors" class="giftAdminGrid"></div><button class="btn salmon" onclick="saveGifts()">Salvar presentes</button></section>
-<section id="settingsPane" class="panel adminPane hide"><h2>Configurações e segurança</h2><label>Nova senha da área dos noivos</label><input id="newPin" type="password"><button class="btn" onclick="changePin()">Alterar senha</button><hr style="margin:28px 0;border:0;border-top:1px solid #ddd"><h3>Backup</h3><p>Exporte um arquivo antes de grandes alterações. O backup inclui textos, convidados, sugestões e fotos adicionadas.</p><button class="btn soft" onclick="exportBackup()">Exportar backup</button><label>Importar backup</label><input id="backupInput" type="file" accept=".json"><button class="btn" onclick="importBackup()">Importar backup</button><hr style="margin:28px 0;border:0;border-top:1px solid #ddd"><button class="btn salmon" onclick="resetPortal()">Restaurar versão original</button></section></section><script>
+<section id="settingsPane" class="panel adminPane hide"><h2>Configurações e segurança</h2><label>Nova senha da área dos noivos</label><input id="newPin" type="password"><button class="btn" onclick="changePin()">Alterar senha</button><hr style="margin:28px 0;border:0;border-top:1px solid #ddd"><h3>Backup</h3><p>Exporte um arquivo antes de grandes alterações. O backup inclui textos, convidados, sugestões e fotos adicionadas.</p><button class="btn soft" onclick="exportBackup()">Exportar backup</button><label>Importar backup</label><input id="backupInput" type="file" accept=".json"><button class="btn" onclick="importBackup()">Importar backup</button><hr style="margin:28px 0;border:0;border-top:1px solid #ddd"><button class="btn salmon" onclick="resetPortal()">Restaurar versão original</button></section></section><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://cmldpkupnvlsabgbpiwq.supabase.co';
+const SUPABASE_KEY='sb_publishable_L-O6R-YseanODp3W8rMkVA_5YCjeJtj';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let conviteSupabase=null;
+
 function setActiveNav(button){document.querySelectorAll('.bottomNav .navItem').forEach(item=>item.classList.remove('active'));if(button)button.classList.add('active')}
 function showRsvpIntro(){const m=document.getElementById('rsvpIntro');m.classList.add('show');document.body.classList.add('modal-open')}
 function closeRsvpIntro(){const m=document.getElementById('rsvpIntro');m.classList.remove('show');document.body.classList.remove('modal-open')}
@@ -89,7 +95,37 @@ function safe(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&
 function renderPublic(){let c=D.content,cover=D.photos[D.coverIndex]||D.photos[0],faith=D.photos[D.faithIndex]||D.photos[0];$('hero').style.backgroundImage=`url('${cover}')`;$('faithImg').style.backgroundImage=`url('${faith}')`;$('heroQuote').textContent=c.heroQuote;$('heroDate').textContent=`${fmtDate(c.date)} • ${c.time}`;$('introText').textContent=c.intro;$('faithText').textContent=c.faith;$('eventDate').textContent=fmtDate(c.date);$('eventTime').textContent=c.time;$('eventVenue').textContent=c.venue;$('eventAddress').textContent=c.address;$('receptionText').textContent=c.reception;$('dressText').textContent=c.dress;$('coupleMessage').textContent=c.message;$('giftText').textContent=c.gift;$('giftCatalog').innerHTML=(D.gifts||[]).map(g=>`<article class="giftOption"><h3>${safe(g.name)}</h3><div class="giftPrice">${Number(g.value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</div><button class="btn salmon" onclick="chooseGift(${Number(g.id)})">Presentear</button></article>`).join('')||'<p>Nenhuma opção de presente cadastrada.</p>';$('pix').textContent=c.pix;$('story').innerHTML=D.chapters.map((x,i)=>`<article class="chapter"><div class="photo" style="background-image:url('${D.photos[x.photoIndex]||D.photos[0]}')"></div><div class="text"><span class="k">Capítulo ${i+1}</span><h3>${safe(x.title)}</h3><p>${safe(x.text)}</p></div></article>`).join('');$('gallery').innerHTML=D.photos.map(x=>`<img src="${x}">`).join('');count()}
 function count(){let c=D.content,d=Math.max(0,new Date(`${c.date}T${c.time||'00:00'}`)-new Date()),v=[Math.floor(d/864e5),Math.floor(d/36e5)%24,Math.floor(d/6e4)%60,Math.floor(d/1000)%60],l=['dias','horas','min','seg'];$('count').innerHTML=v.map((x,i)=>`<div><b>${x}</b>${l[i]}</div>`).join('')}setInterval(count,1000);function openMap(){window.open(D.content.map,'_blank')}function copyPix(){navigator.clipboard?.writeText(D.content.pix).then(()=>alert('Chave PIX copiada.')).catch(()=>prompt('Copie a chave PIX:',D.content.pix))}
 function chooseGift(id){let g=(D.gifts||[]).find(x=>Number(x.id)===Number(id));if(!g)return;let valor=Number(g.value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});let msg=`Presente escolhido: ${g.name} (${valor}).\n\nUse a chave PIX exibida nesta seção para realizar o presente.`;if(confirm(msg+'\n\nDeseja copiar a chave PIX agora?'))copyPix()}
-function lookup(){let q=$('q').value.trim().toLowerCase(),g=D.guests.find(x=>x.code.toLowerCase()===q||x.name.toLowerCase()===q);if(!g){$('rmsg').textContent='Convite não localizado.';return}$('rmsg').textContent='';$('rform').innerHTML=`<h3>Olá, ${safe(g.name)}!</h3><p>Até <b>${g.seats}</b> lugares.</p><label>Resposta</label><select id="ra"><option>Confirmado</option><option>Não comparecerá</option></select><label>Quantidade</label><input id="rq" type="number" min="0" max="${g.seats}" value="${g.seats}"><label>Mensagem ou restrições alimentares</label><textarea id="rn"></textarea><button class="btn" onclick="submit(${g.id})">Enviar resposta</button>`}function submit(id){let g=D.guests.find(x=>x.id===id);g.status=$('ra').value;g.confirmed=g.status==='Confirmado'?Math.min(g.seats,+$('rq').value||1):0;g.note=$('rn').value;persist();$('rform').innerHTML='<h3>Resposta registrada. Obrigado!</h3>'}function suggestSong(){let guest=$('songGuest').value.trim(),title=$('songTitle').value.trim(),artist=$('songArtist').value.trim(),note=$('songNote').value.trim();if(!guest||!title||!artist){$('songMsg').textContent='Preencha seu nome, a música e o artista.';return}D.suggestions.push({id:Date.now(),guest,title,artist,note});persist();$('songGuest').value=$('songTitle').value=$('songArtist').value=$('songNote').value='';$('songMsg').textContent='Sugestão enviada. Obrigado por participar!'}
+async function lookup(){
+  const busca=$('q').value.trim();
+  $('rmsg').textContent='';
+  $('rform').innerHTML='';
+  if(!busca){$('rmsg').textContent='Digite seu nome ou código.';return}
+  $('rmsg').textContent='Localizando convite...';
+  const {data,error}=await supabaseClient.rpc('localizar_convite',{busca});
+  if(error){console.error(error);$('rmsg').textContent='Não foi possível consultar o convite. Tente novamente.';return}
+  const g=data&&data[0];
+  if(!g){$('rmsg').textContent='Convite não localizado.';return}
+  conviteSupabase=g;
+  $('rmsg').textContent='';
+  const quantity=Array.from({length:g.vagas},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  $('rform').innerHTML=`<h3>Olá, ${safe(g.nome)}!</h3><p>Este convite permite até <b>${g.vagas}</b> presença(s).</p><label>Resposta</label><select id="ra" onchange="toggleRsvpQuantity()"><option value="Confirmado">Confirmarei presença</option><option value="Não comparecerá">Não poderei comparecer</option></select><div id="quantityBox"><label>Quantidade de confirmados</label><select id="rq">${quantity}</select></div><label>Mensagem ou restrições alimentares</label><textarea id="rn"></textarea><button class="btn" id="rsvpSubmit" onclick="submitRsvp()">Enviar resposta</button>`;
+  $('ra').value=g.status==='Não comparecerá'?'Não comparecerá':'Confirmado';
+  if(g.quantidade_confirmada>0&&$('rq'))$('rq').value=String(Math.min(g.vagas,g.quantidade_confirmada));
+  toggleRsvpQuantity();
+}
+function toggleRsvpQuantity(){const box=$('quantityBox');if(box)box.style.display=$('ra').value==='Confirmado'?'block':'none'}
+async function submitRsvp(){
+  if(!conviteSupabase){$('rmsg').textContent='Localize o convite primeiro.';return}
+  const resposta=$('ra').value;
+  const quantidade=resposta==='Confirmado'?Number($('rq').value):0;
+  const observacao=$('rn').value.trim();
+  const btn=$('rsvpSubmit');btn.disabled=true;btn.textContent='Salvando...';
+  const {data,error}=await supabaseClient.rpc('confirmar_presenca',{convite_id:conviteSupabase.id,convite_codigo:conviteSupabase.codigo,nova_resposta:resposta,nova_quantidade:quantidade,nova_observacao:observacao||null});
+  if(error||data!==true){console.error(error);btn.disabled=false;btn.textContent='Enviar resposta';$('rmsg').textContent='Não foi possível registrar sua resposta. Tente novamente.';return}
+  $('rform').innerHTML='<h3>Resposta registrada. Obrigado!</h3><p>Estamos felizes por receber sua resposta.</p>';
+  $('rmsg').textContent='';conviteSupabase=null;
+}
+function suggestSong(){let guest=$('songGuest').value.trim(),title=$('songTitle').value.trim(),artist=$('songArtist').value.trim(),note=$('songNote').value.trim();if(!guest||!title||!artist){$('songMsg').textContent='Preencha seu nome, a música e o artista.';return}D.suggestions.push({id:Date.now(),guest,title,artist,note});persist();$('songGuest').value=$('songTitle').value=$('songArtist').value=$('songNote').value='';$('songMsg').textContent='Sugestão enviada. Obrigado por participar!'}
 function renderAdmin(){D.gifts=D.gifts||[];renderGiftEditors();let total=D.guests.reduce((s,x)=>s+x.seats,0),yes=D.guests.reduce((s,x)=>s+x.confirmed,0);$('kpis').innerHTML=`<div class="kpi">Vagas<b>${total}</b></div><div class="kpi">Confirmados<b>${yes}</b></div><div class="kpi">Pendentes<b>${D.guests.filter(x=>x.status==='Pendente').length}</b></div><div class="kpi">Recusas<b>${D.guests.filter(x=>x.status==='Não comparecerá').length}</b></div><div class="kpi">Fotos<b>${D.photos.length}</b></div><div class="kpi">Músicas<b>${D.suggestions.length}</b></div>`;$('rows').innerHTML=D.guests.map(x=>`<tr><td>${safe(x.name)}</td><td>${safe(x.code)}</td><td>${x.seats}</td><td>${x.status}</td><td>${x.confirmed}</td><td><button class="btn salmon small" onclick="removeGuest(${x.id})">Excluir</button></td></tr>`).join('');$('songRows').innerHTML=D.suggestions.map(x=>`<tr><td>${safe(x.guest)}</td><td>${safe(x.title)}</td><td>${safe(x.artist)}</td><td>${safe(x.note)}</td><td><button class="btn salmon small" onclick="removeSong(${x.id})">Excluir</button></td></tr>`).join('');renderContentEditor();renderChapterEditors();renderPhotoGrid()}
 function addGuest(){if(!$('gn').value.trim())return alert('Informe o nome.');D.guests.push({id:Date.now(),name:$('gn').value.trim(),code:$('gc').value.trim()||'IJ'+Date.now().toString().slice(-5),seats:Math.max(1,+$('gs').value||1),status:'Pendente',confirmed:0,note:''});persist();renderAdmin()}function removeGuest(id){D.guests=D.guests.filter(x=>x.id!==id);persist();renderAdmin()}function removeSong(id){D.suggestions=D.suggestions.filter(x=>x.id!==id);persist();renderAdmin()}
 function renderContentEditor(){let c=D.content;[['cDate','date'],['cTime','time'],['cVenue','venue'],['cAddress','address'],['cMap','map'],['cPix','pix'],['cHeroQuote','heroQuote'],['cIntro','intro'],['cFaith','faith'],['cReception','reception'],['cDress','dress'],['cMessage','message'],['cGift','gift']].forEach(([a,b])=>$(a).value=c[b]||'')}function saveContent(){let c=D.content;[['cDate','date'],['cTime','time'],['cVenue','venue'],['cAddress','address'],['cMap','map'],['cPix','pix'],['cHeroQuote','heroQuote'],['cIntro','intro'],['cFaith','faith'],['cReception','reception'],['cDress','dress'],['cMessage','message'],['cGift','gift']].forEach(([a,b])=>c[b]=$(a).value);persist();renderPublic();alert('Textos e informações salvos.')}
@@ -104,19 +140,5 @@ function changePin(){let p=$('newPin').value;if(p.length<6)return alert('Use uma
 
 setTimeout(()=>{const a=document.getElementById('dressText'),b=document.getElementById('dressTextCopy');if(a&&b&&a.textContent.trim())b.textContent=a.textContent},100);
 </script>
-  https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2script>
-
-  <script>
-    const SUPABASE_URL = 'https:cmldpkupnvlsabgbpiwq.supabase.co';
-
-    const SUPABASE_KEY = 'sb_publishable_L-06R-Ysean0Dp3W8rMkVA_5YCjeJtj';
-
-    const SupabaseClient=
-      window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-        );
-    console.log('Supabase conectado');
-    
-  </script>
+  https://cdn.jsdelivr.net/npm/@supabase/
 </body></html>
