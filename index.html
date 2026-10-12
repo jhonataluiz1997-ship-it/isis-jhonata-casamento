@@ -103,4 +103,6 @@ async function addPhotos(){let fs=[...$('photoFiles').files];if(!fs.length)retur
 function changePin(){let p=$('newPin').value;if(p.length<6)return alert('Use uma senha com pelo menos 6 caracteres.');D.pin=p;persist();$('newPin').value='';alert('Senha alterada.')}function exportBackup(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,2)],{type:'application/json'}));a.download='backup_portal_isis_jhonata.json';a.click()}function importBackup(){let f=$('backupInput').files[0];if(!f)return alert('Selecione um backup.');let r=new FileReader();r.onload=()=>{try{D=JSON.parse(r.result);persist();renderAdmin();renderPublic();alert('Backup importado.')}catch(e){alert('Backup inválido.')}};r.readAsText(f)}function resetPortal(){if(confirm('Restaurar o portal original? Todas as alterações locais serão apagadas.')){D=clone(BASE);persist();renderAdmin();renderPublic()}}renderPublic();
 
 setTimeout(()=>{const a=document.getElementById('dressText'),b=document.getElementById('dressTextCopy');if(a&&b&&a.textContent.trim())b.textContent=a.textContent},100);
-</script></body></html>
+</script>
+  https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2script>
+</body></html>
