@@ -67,7 +67,7 @@ main{max-width:1120px;margin:auto;padding:0 5% 95px}.sec{padding:72px 0}.sec h2{
 </nav>
 <div class="modal" id="rsvpIntro" role="dialog" aria-modal="true" aria-labelledby="rsvpTitle"><div class="modalBox"><h3 id="rsvpTitle">Que alegria ter você conosco!</h3><p>Preparamos este convite com muito carinho. Antes de confirmar sua presença, aproveite para conhecer nossa história e os detalhes desse dia tão especial.</p><div class="modalActions"><button class="btn soft" onclick="closeRsvpIntro()">Conhecer o convite</button><button class="btn salmon" onclick="confirmFromModal()">Confirmar presença</button></div></div></div>
 </section><section id="login" class="login hide"><div class="box"><span class="k">Área exclusiva</span><h2>Login dos noivos</h2><label>Usuário</label><input id="user" placeholder="Isis ou Jhonata"><label>Senha</label><input id="pass" type="password"><p id="lmsg"></p><button class="btn" onclick="doLogin()">Entrar</button> <button class="btn soft" onclick="showPublic()">Voltar</button><p>Senha inicial: <b>IJ2027@Julho</b></p></div></section><section id="admin" class="admin hide"><div class="head"><div><span class="k">Painel gerencial completo</span><h1>Isis & Jhonata</h1></div><div><button class="btn soft" onclick="exportBackup()">Exportar backup</button> <button class="btn salmon" onclick="showPublic()">Ver portal</button></div></div><div class="kpis" id="kpis"></div><div class="tabs"><button class="btn tab active" onclick="adminTab('dashPane',this)">Convidados</button><button class="btn tab soft" onclick="adminTab('contentPane',this)">Textos e evento</button><button class="btn tab soft" onclick="adminTab('storyPane',this)">História</button><button class="btn tab soft" onclick="adminTab('photosPane',this)">Fotos</button><button class="btn tab soft" onclick="adminTab('musicPane',this)">Músicas</button><button class="btn tab soft" onclick="adminTab('giftsPane',this)">Presentes</button><button class="btn tab soft" onclick="adminTab('settingsPane',this)">Configurações</button></div>
-<section id="dashPane" class="panel adminPane"><h2>Gestão de convidados</h2><div class="form"><div><label>Nome/Família</label><input id="gn"></div><div><label>Código</label><input id="gc"></div><div><label>Vagas</label><input id="gs" type="number" value="1"></div><div style="align-self:end"><button class="btn" onclick="addGuest()">Adicionar</button></div></div><div class="table"><table><thead><tr><th>Nome</th><th>Código</th><th>Vagas</th><th>Status</th><th>Confirmados</th><th>Ação</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+<section id="dashPane" class="panel adminPane"><div class="head"><h2>Gestão de convidados</h2><button class="btn soft" onclick="exportarConvidadosExcel()">Baixar Excel</button></div><div class="form"><div><label>Nome/Família</label><input id="gn"></div><div><label>Código</label><input id="gc"></div><div><label>Vagas</label><input id="gs" type="number" value="1"></div><div style="align-self:end"><button class="btn" onclick="addGuest()">Adicionar</button></div></div><div class="table"><table><thead><tr><th>Nome</th><th>Código</th><th>Vagas</th><th>Status</th><th>Confirmados</th><th>Ação</th></tr></thead><tbody id="rows"></tbody></table></div></section>
 <section id="contentPane" class="panel adminPane hide"><h2>Textos e informações do casamento</h2><div class="form"><div><label>Data</label><input id="cDate" type="date"></div><div><label>Horário</label><input id="cTime" type="time"></div><div><label>Nome do espaço</label><input id="cVenue"></div><div><label>Endereço</label><input id="cAddress"></div><div><label>Link do mapa</label><input id="cMap"></div><div><label>Chave PIX</label><input id="cPix"></div></div><label>Frase da capa</label><textarea id="cHeroQuote"></textarea><label>Introdução</label><textarea id="cIntro"></textarea><label>Texto Nossa Fé</label><textarea id="cFaith"></textarea><label>Texto da recepção</label><textarea id="cReception"></textarea><label>Orientação de vestimenta</label><textarea id="cDress"></textarea><label>Mensagem dos noivos</label><textarea id="cMessage"></textarea><label>Texto de presentes</label><textarea id="cGift"></textarea><button class="btn salmon" onclick="saveContent()">Salvar textos e informações</button></section>
 <section id="storyPane" class="panel adminPane hide"><div class="head"><h2>Capítulos da nossa história</h2><button class="btn" onclick="addChapter()">Adicionar capítulo</button></div><div id="chapterEditors"></div><button class="btn salmon" onclick="saveChapters()">Salvar história</button></section>
 <section id="photosPane" class="panel adminPane hide"><h2>Gerenciamento de fotos</h2><p>Adicione fotos, remova imagens e escolha a capa e a imagem da seção Nossa Fé.</p><label>Adicionar novas fotos</label><input id="photoFiles" type="file" accept="image/*" multiple><button class="btn" onclick="addPhotos()">Adicionar fotos</button><div id="photoGrid" class="thumbGrid" style="margin-top:20px"></div></section>
@@ -141,4 +141,122 @@ function changePin(){let p=$('newPin').value;if(p.length<6)return alert('Use uma
 setTimeout(()=>{const a=document.getElementById('dressText'),b=document.getElementById('dressTextCopy');if(a&&b&&a.textContent.trim())b.textContent=a.textContent},100);
 </script>
   https://cdn.jsdelivr.net/npm/@supabase/
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+/* INTEGRAÇÃO COMPLETA COM SUPABASE - fonte única de dados */
+let adminSessionPin='';
+let salvamentoTimer=null;
+
+async function carregarPortalSupabase(){
+  const {data,error}=await supabaseClient.rpc('carregar_portal');
+  if(error){console.error('Erro ao carregar portal:',error);return}
+  if(data&&typeof data==='object'){
+    const localPin=D.pin;
+    D={...D,...data,content:{...D.content,...(data.content||{})}};
+    D.pin=localPin;
+  }
+  await carregarSugestoesSupabase();
+  renderPublic();
+}
+
+async function salvarPortalSupabase(mostrarMensagem=false){
+  if(!adminSessionPin)return;
+  const dados=clone(D);delete dados.guests;delete dados.suggestions;delete dados.pin;
+  const {data,error}=await supabaseClient.rpc('salvar_portal',{senha:adminSessionPin,novo_dado:dados});
+  if(error||data!==true){console.error(error);alert('Não foi possível salvar no Supabase.');return false}
+  if(mostrarMensagem)alert('Alterações salvas e publicadas para todos os convidados.');
+  return true;
+}
+
+function persist(){
+  localStorage.setItem(KEY,JSON.stringify(D));
+  if(adminSessionPin){clearTimeout(salvamentoTimer);salvamentoTimer=setTimeout(()=>salvarPortalSupabase(false),250)}
+}
+
+async function doLogin(){
+  const u=$('user').value.trim().toLowerCase();
+  const senha=$('pass').value;
+  if(u!=='isis'&&u!=='jhonata'){$('lmsg').textContent='Usuário ou senha incorretos.';return}
+  const {data,error}=await supabaseClient.rpc('validar_admin',{senha});
+  if(error||data!==true){$('lmsg').textContent='Usuário ou senha incorretos.';return}
+  adminSessionPin=senha;$('lmsg').textContent='';
+  $('login').classList.add('hide');$('admin').classList.remove('hide');
+  await renderAdmin();
+}
+
+async function carregarConvidadosSupabase(){
+  const {data,error}=await supabaseClient.rpc('listar_convidados_admin',{senha:adminSessionPin});
+  if(error){console.error(error);alert('Não foi possível carregar os convidados.');return}
+  D.guests=(data||[]).map(x=>({id:Number(x.id),name:x.nome,code:x.codigo,seats:Number(x.vagas),status:x.status,confirmed:Number(x.quantidade_confirmada||0),note:x.observacao||'',respondedAt:x.respondido_em||null}));
+}
+
+async function renderAdmin(){
+  await carregarConvidadosSupabase();
+  await carregarSugestoesSupabase();
+  D.gifts=D.gifts||[];renderGiftEditors();
+  const total=D.guests.reduce((s,x)=>s+x.seats,0),yes=D.guests.reduce((s,x)=>s+x.confirmed,0);
+  $('kpis').innerHTML=`<div class="kpi">Vagas<b>${total}</b></div><div class="kpi">Confirmados<b>${yes}</b></div><div class="kpi">Pendentes<b>${D.guests.filter(x=>x.status==='Pendente').length}</b></div><div class="kpi">Recusas<b>${D.guests.filter(x=>x.status==='Não comparecerá').length}</b></div><div class="kpi">Fotos<b>${D.photos.length}</b></div><div class="kpi">Músicas<b>${D.suggestions.length}</b></div>`;
+  $('rows').innerHTML=D.guests.map(x=>`<tr><td>${safe(x.name)}</td><td>${safe(x.code)}</td><td>${x.seats}</td><td>${safe(x.status)}</td><td>${x.confirmed}</td><td><button class="btn salmon small" onclick="removeGuest(${x.id})">Excluir</button></td></tr>`).join('');
+  $('songRows').innerHTML=D.suggestions.map(x=>`<tr><td>${safe(x.guest)}</td><td>${safe(x.title)}</td><td>${safe(x.artist)}</td><td>${safe(x.note)}</td><td><button class="btn salmon small" onclick="removeSong(${x.id})">Excluir</button></td></tr>`).join('');
+  renderContentEditor();renderChapterEditors();renderPhotoGrid();
+}
+
+async function addGuest(){
+  const nome=$('gn').value.trim();
+  const codigo=$('gc').value.trim()||('IJ'+Date.now().toString().slice(-5));
+  const vagas=Math.max(1,Number($('gs').value)||1);
+  if(!nome)return alert('Informe o nome.');
+  const {data,error}=await supabaseClient.rpc('adicionar_convidado_admin',{senha:adminSessionPin,novo_nome:nome,novo_codigo:codigo,nova_vagas:vagas});
+  if(error||data!==true){console.error(error);return alert('Não foi possível adicionar. Verifique se o código já existe.')}
+  $('gn').value='';$('gc').value='';$('gs').value='1';await renderAdmin();
+}
+async function removeGuest(id){
+  if(!confirm('Excluir este convidado?'))return;
+  const {data,error}=await supabaseClient.rpc('excluir_convidado_admin',{senha:adminSessionPin,convidado_id:id});
+  if(error||data!==true){console.error(error);return alert('Não foi possível excluir.')}
+  await renderAdmin();
+}
+
+async function carregarSugestoesSupabase(){
+  const {data,error}=await supabaseClient.from('sugestoes_musicais').select('*').order('criado_em',{ascending:false});
+  if(!error)D.suggestions=(data||[]).map(x=>({id:Number(x.id),guest:x.nome_convidado,title:x.musica,artist:x.artista,note:x.observacao||''}));
+}
+async function suggestSong(){
+  const guest=$('songGuest').value.trim(),title=$('songTitle').value.trim(),artist=$('songArtist').value.trim(),note=$('songNote').value.trim();
+  if(!guest||!title||!artist){$('songMsg').textContent='Preencha seu nome, a música e o artista.';return}
+  const {error}=await supabaseClient.rpc('sugerir_musica',{nome_convidado:guest,nome_musica:title,nome_artista:artist,nova_observacao:note||null});
+  if(error){console.error(error);$('songMsg').textContent='Não foi possível enviar a sugestão.';return}
+  $('songGuest').value=$('songTitle').value=$('songArtist').value=$('songNote').value='';$('songMsg').textContent='Sugestão enviada. Obrigado por participar!';
+}
+async function removeSong(id){
+  const {data,error}=await supabaseClient.rpc('excluir_sugestao_admin',{senha:adminSessionPin,sugestao_id:id});
+  if(error||data!==true)return alert('Não foi possível excluir.');await renderAdmin();
+}
+
+async function changePin(){
+  const p=$('newPin').value;if(p.length<6)return alert('Use uma senha com pelo menos 6 caracteres.');
+  const {data,error}=await supabaseClient.rpc('alterar_senha_admin',{senha_atual:adminSessionPin,nova_senha:p});
+  if(error||data!==true)return alert('Não foi possível alterar a senha.');adminSessionPin=p;$('newPin').value='';alert('Senha alterada no Supabase.');
+}
+
+function exportarConvidadosExcel(){
+  const linhas=D.guests.map(x=>({
+    'Nome/Família':x.name,'Código':x.code,'Vagas':x.seats,'Status':x.status,
+    'Quantidade confirmada':x.confirmed,'Observação/Restrição':x.note||'',
+    'Respondido em':x.respondedAt?new Date(x.respondedAt).toLocaleString('pt-BR'):''
+  }));
+  const ws=XLSX.utils.json_to_sheet(linhas);ws['!cols']=[{wch:28},{wch:12},{wch:8},{wch:20},{wch:22},{wch:35},{wch:22}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Convidados');XLSX.writeFile(wb,'confirmacoes_casamento_isis_jhonata.xlsx');
+}
+
+/* Salva imediatamente os editores principais no Supabase */
+const _saveContent=saveContent;saveContent=async function(){_saveContent();await salvarPortalSupabase(false)};
+const _saveChapters=saveChapters;saveChapters=async function(){_saveChapters();await salvarPortalSupabase(false)};
+const _saveGifts=saveGifts;saveGifts=async function(){_saveGifts();await salvarPortalSupabase(false)};
+const _addPhotos=addPhotos;addPhotos=async function(){await _addPhotos();await salvarPortalSupabase(false)};
+
+carregarPortalSupabase();
+</script>
+
 </body></html>
